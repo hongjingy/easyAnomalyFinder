@@ -3,7 +3,7 @@
 A lightweight script to find anomalous signals in time-domain light curves based on residuals. Initially designed to detect microlensing planets, but it can be used for broader purposes.
 
 ## Acknowledgements
-If your scientific research uses or is based on this code, please cite [ TBD ]
+If your scientific research uses or is based on this code, please cite [Yang et al. (2025)](https://doi.org/10.3847/1538-3881/adc73e).
 
 ## Installation
 Clone this repository to your working directory.
@@ -25,20 +25,29 @@ The script can be easily customized.
 For example, you can create a new Python script, `import easyAnomalyFinder`, and customize most of the options and parameters. All supported arguments can be found in the following detailed API section.
 ```python
 import easyAnomalyFinder
-# Assuming your residual file have 4 columns, including date, flux, flux uncertainty, and the flux model value, and all from a single observational site.
+# Assuming your residual file have 4 columns, 
+# including date, flux, flux uncertainty, and the flux model value, 
+# all from a single observational site.
 residual_data = np.genfromtxt('Your_Residual_File.dat',
-                              dtype=[('date','f8'),('flux','f8'),('ferr','f8'),('flux_model','f8')])
+                              dtype=[('date','f8'),
+                                     ('flux','f8'),
+                                     ('ferr','f8'),
+                                     ('flux_model','f8')])
 data_kwargs = {'date':residual_data['date'], 
                'flux':residual_data['flux'], 
                'ferr':residual_data['ferr'], 
                'flux_model':residual_data['flux_model']}
-AF = easyAnomalyFinder.AnomalyFinder(data_kwargs=data_kwargs,eventname='AnyNameYouLike')
+AF = easyAnomalyFinder.AnomalyFinder(data_kwargs=data_kwargs,
+                                     eventname='AnyNameYouLike')
 
 # Manage the AnomalyFinder options and setup
 AF_options = {'mode':'detection',
-              'if_rescale_error_by_fwhm':False, # because you have no fwhm (seeing) infomation
-              'if_check_multiple_sites':False,  # because you have only one observational site
-              'if_check_smooth_poly':False,     # for example, you do not want to check if the signal is smooth
+              # because you have no fwhm (seeing) infomation
+              'if_rescale_error_by_fwhm':False, 
+              # because you have only one observational site
+              'if_check_multiple_sites':False,  
+              # for example, not check if the signal is smooth
+              'if_check_smooth_poly':False,     
               'verbose':False,
               }
 AF.set_up(**AF_options)
@@ -50,9 +59,12 @@ anomaly_list = AF.find_anomaly(verbose=True)
 save_dir = 'YourOutputDir'
 header = 't_start t_window ind_start ind_end window_npt chi2_window-window_npt chi2_window/window_npt chi2_poly poly_order z/σz max(dF/F) RMS_ratio'
 if len(anomaly_list)>0:
-    np.savetxt(save_dir+'/anomaly_list.dat',anomaly_list,fmt='%.6f %10.6f %6d %6d %4d %12.6f %12.6f %12.6f %1d %12.6f %12.6f %12.6f',header=header)
+    np.savetxt(save_dir+'/anomaly_list.dat',anomaly_list,
+    fmt='%.6f %10.6f %6d %6d %4d %12.6f %12.6f %12.6f %1d %12.6f %12.6f %12.6f',
+    header=header)
 for ianom,anom in enumerate(anomaly_list):
-    AF.plot_anomaly(ianom=ianom,saveto=save_dir+'/anom_%03d.png'%(ianom))
+    AF.plot_anomaly(ianom=ianom,
+      saveto=save_dir+'/anom_%03d.png'%(ianom))
 ```
 
 
