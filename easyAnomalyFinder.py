@@ -1,3 +1,9 @@
+# Copyright (c) [2025] [杨弘靖/YANG Hongjing]
+# Please cite the following paper when using this code:
+# 
+# "Systematic Reanalysis of KMTNet Microlensing Events. II. Two New Planets in Giant-source Events", Yang et al., The Astronomical Journal, 2025, DOI:10.3847/1538-3881/adc73e, https://ui.adsabs.harvard.edu/abs/2025AJ....169..295Y
+
+
 import numpy as np
 from scipy.stats import chi2 as chi2_distribution
 from scipy.stats import chi as chi_distribution
@@ -63,6 +69,7 @@ class AnomalyFinder(BaseClass):
 
         self.if_check_continuous = False
         self.continuous_check_length = None
+        self.continuous_sigma_thres = None
 
         self.if_check_chi2_domination = True
         self.if_check_fwhm_domination = False
@@ -126,6 +133,8 @@ class AnomalyFinder(BaseClass):
         self._set_value(kwargs, 'verbose', False)
         self._set_value(kwargs, 'mode', 'detection')
 
+        # self._set_value(kwargs, 'time_windows', np.logspace(np.log10(0.2),np.log10(200),30))
+        # self._set_value(kwargs, 'time_windows', np.logspace(np.log10(0.02),np.log10(2000),51))
         self._set_value(kwargs, 'time_windows', np.unique(np.hstack((np.logspace(np.log10(0.02),np.log10(2),16),np.logspace(np.log10(2),np.log10(2000),21)))))
         self._set_value(kwargs, 'window_npt_thres', 3)
         self._set_value(kwargs, 'coverage_min_frac', 0.5)
@@ -157,6 +166,7 @@ class AnomalyFinder(BaseClass):
 
         self._set_value(kwargs, 'if_check_continuous', False)
         self._set_value(kwargs, 'continuous_check_length', 3)
+        self._set_value(kwargs, 'continuous_sigma_thres', 1)
         
         self._set_value(kwargs, 'if_check_chi2_domination', True)
         self._set_value(kwargs, 'if_check_fwhm_domination', False)
@@ -357,6 +367,26 @@ class AnomalyFinder(BaseClass):
         longest_time_gap = np.max(idate_window[1:]-idate_window[:-1])
         valid = (1.0-longest_time_gap/t_window) >= self.coverage_min_frac
         return valid
+    
+    def is_continuous_significant(self, ires_window, n_continuous=None, thres=None, window_npt=None):
+        # check if there are continuous points with significant chi2 with the same sign
+        if window_npt is None:
+            window_npt = len(ires_window)
+        n_continuous = self.continuous_check_length if n_continuous is None else n_continuous
+        thres = self.continuous_sigma_thres if thres is None else thres
+        continuous = False
+
+        abs_ires = np.abs(ires_window)
+        
+        for i in range(window_npt-n_continuous+1):
+            segment = ires_window[i:i+n_continuous]
+            # check if the absolute residuals are all above the threshold
+            if np.all(abs_ires[i:i+n_continuous] > thres):
+                # check if the signs are all the same
+                if np.all(segment > 0) or np.all(segment < 0):
+                    continuous = True
+                    break
+        return continuous
 
     def is_continuous(self, ichi2_window, ires_sign_window, window_npt=None):
         # The max-SNR point should have the same sign with surrounding points
@@ -524,9 +554,9 @@ class AnomalyFinder(BaseClass):
                         continue
                     n_pass_mutisite += 1
 
-                ### check if the sign of residuals are continuous ###
+                ### check if the sign of residuals are continuous and exceed a threshold ###
                 if self.if_check_continuous:
-                    b_is_continuous = self.is_continuous(ichi2_window, ires_sign_window)
+                    b_is_continuous = self.is_continuous_significant(ires_window)
                     if not(b_is_continuous) and (self.mode!='all'):
                         continue
                     n_pass_continuous += 1
@@ -617,7 +647,7 @@ class AnomalyFinder(BaseClass):
             if self.if_check_multiple_sites:
                 print('Multiple sites: %21d'%n_pass_mutisite)
             if self.if_check_continuous:
-                print('Residual sign continuous: %11d'%n_pass_continuous)
+                print('Continuous significant points: %6d'%n_pass_continuous)
             if self.if_check_chi2_domination:
                 print('Not dominated by largest chi2: %6d'%n_pass_dropchi2)
             if self.if_check_fwhm_domination:
@@ -1052,10 +1082,16 @@ if __name__=='__main__':
     # set up AF options
     AF_options = {'sigma': 4.0, 'chi2_low':80.0,
                   'mode':AFmode,
+                  'dchi2_ref_low':50.0,
+                  'coverage_min_frac': 0.5,
                   'if_rescale_error_by_fwhm':True,
                   'chi2_drop_frac':0.15,
                   'if_check_RMS':True,
+                  'RMS_ratio_sigma':1.0,
                   'if_check_multiple_sites':True,
+                  'if_check_continuous':True,
+                  'continuous_check_length': 3,
+                  'continuous_sigma_thres': 1,
                   'if_check_chi2_domination':True,
                   'if_check_smooth_poly':True,
                   'poly_consistent_thres':0.3,
